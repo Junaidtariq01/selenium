@@ -163,7 +163,7 @@ def send_bulk(data, message, config, schedule_delay=0):
 
 @app.route('/')
 def index():
-    return render_template("indexFinal.html")
+    return render_template("index.html")
 
 @app.route('/upload_excel', methods=['POST'])
 def upload_excel():
