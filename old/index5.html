@@ -1,0 +1,62 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>WhatsApp Sender Pro</title>
+</head>
+<body>
+<h2>🚀 WhatsApp Bulk Sender Pro</h2>
+
+<input type="file" id="file"><br><br>
+<button onclick="upload()">Upload Excel</button>
+
+<p id="count"></p>
+
+<h3>Message Template:</h3>
+<textarea id="msg">Hello {name}, this is a test 🚀</textarea>
+
+<h3>Schedule (optional):</h3>
+<input type="datetime-local" id="schedule"><br><br>
+
+<button onclick="send()">Start Sending</button>
+
+<h3>Status:</h3>
+<p id="status"></p>
+
+<script>
+function upload(){
+    let file = document.getElementById('file').files[0];
+    let formData = new FormData();
+    formData.append("file", file);
+
+    fetch('/upload',{method:'POST', body:formData})
+    .then(res=>res.json())
+    .then(data=>{
+        document.getElementById('count').innerText = "Valid Contacts: " + data.count
+    })
+}
+
+function send(){
+    fetch('/send',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+            message: document.getElementById('msg').value,
+            schedule: document.getElementById('schedule').value
+        })
+    })
+}
+
+setInterval(()=>{
+    fetch('/status')
+    .then(res=>res.json())
+    .then(data=>{
+        document.getElementById('status').innerText = 
+        `Sent: ${data.sent} | Failed: ${data.failed} | Skipped: ${data.skipped} | Running: ${data.running} | Scheduled: ${data.scheduled}`
+    })
+},2000)
+</script>
+
+</body>
+</html>
