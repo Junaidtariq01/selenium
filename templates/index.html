@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Singularity Pro | Command Center</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" /> -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
     <style>
@@ -22,8 +23,8 @@
         --border: #e2e8f0;
       }
 
-      * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: "Inter", sans-serif; background-color: var(--bg); color: var(--text-main); line-height: 1.6; padding-bottom: 140px; }
+      * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Outfit";}
+      body { font-family: "Outfit", sans-serif; background-color: var(--bg); color: var(--text-main); line-height: 1.6; padding-bottom: 140px; }
 
       /* Notifications */
       #notification-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
@@ -181,13 +182,13 @@
           <div class="settings-grid">
             <div class="form-group"><label>Min Interval (s)</label><input type="number" id="dmin" value="15" /></div>
             <div class="form-group"><label>Max Interval (s)</label><input type="number" id="dmax" value="45" /></div>
-            <div class="form-group"><label>Batch Volume</label><input type="number" id="batch" value="5" /></div>
-            <div class="form-group"><label>Cooldown (m)</label><input type="number" id="cmin" value="2" /></div>
+            <div class="form-group"><label>Batch Size (no of messages)</label><input type="number" id="batch" value="5" /></div>
+            <div class="form-group"><label>Cooldown (minutes)</label><input type="number" id="cmin" value="2" /></div>
           </div>
 
           <div class="anti-ban-grid">
               <label class="toggle-item"><input type="checkbox" id="chk-typing" checked> <span>Typing Simulation</span></label>
-              <label class="toggle-item"><input type="checkbox" id="chk-spintax" checked> <span>Spintax</span></label>
+              <label class="toggle-item"><input type="checkbox" id="chk-spintax" checked> <span>Spintax Rotation</span></label>
               <label class="toggle-item"><input type="checkbox" id="chk-hours"> <span>Safe Hours (9-9)</span></label>
           </div>
 
@@ -214,7 +215,8 @@
         <div class="stat-item"><span class="stat-label">Skipped</span><span class="stat-val" id="stat-skipped" style="color: var(--warning)">0</span></div>
         <div class="stat-item"><span class="stat-label">Failed</span><span class="stat-val" id="stat-failed" style="color: var(--danger)">0</span></div>
         <div class="stat-item"><span class="stat-label">Total</span><span class="stat-val" id="stat-total">0</span></div>         
-        <div class="stat-item"><span class="stat-label">Speed</span><span class="stat-val" id="stat-speed">0</span></div>
+        <div class="stat-item"><span class="stat-label">Speed</span><span class="stat-val" id="stat-speed" style="color: var(--primary-dark)">0</span></div>
+        <div><span style="font-size: 0.6rem; color: var(--text-muted); margin-left: -1.8rem;">(ms/char)</span></div>
       </div>
 
       <div class="action-btns">
