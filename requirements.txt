@@ -1,6 +1,8 @@
 flask
+flask-sqlalchemy
+flask-login
+werkzeug
 selenium
 webdriver-manager
 openpyxl
-flask-sqlalchemy
-flask-login
+gunicorn
