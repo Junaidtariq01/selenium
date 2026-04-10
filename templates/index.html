@@ -24,6 +24,9 @@
       body { font-family: "Inter", sans-serif; background-color: var(--bg); color: var(--text-main); line-height: 1.6; padding-bottom: 120px; }
       
       #notification-container { position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
+      .logout-link { color: white; text-decoration: none; background: rgba(236, 9, 9, 0.15); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.3s ease;}
+      .logout-link:hover { background: var(--danger); transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);}
+      .upload-now-label { font-size: 0.8rem; font-weight: bold; color: #128c7e; margin-right: 15px; margin-top: 10px;}
       .toast { padding: 15px 25px; border-radius: 8px; color: white; font-weight: 600; font-size: 0.9rem; min-width: 280px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); animation: slideIn 0.3s ease-out forwards; display: flex; align-items: center; gap: 10px; }
       .toast.success { background: var(--primary-dark); }
       .toast.error { background: var(--danger); }
@@ -80,14 +83,31 @@
   </head>
   <body>
     <div id="notification-container"></div>
-    
-    <header>
+    <!-- <header>
       <div><h1 style="font-size: 1.4rem"><i class="fa-brands fa-whatsapp"></i> Sender Pro</h1></div>
       <div class="status-badge">
         <div id="dot" class="pulse-dot"></div>
         <span id="status-text">System Idle</span>
       </div>
-    </header>
+    </header> -->
+ <header>
+   <div><h1 style="font-size: 1.4rem"><i class="fa-brands fa-whatsapp"></i> Singularity Pro</h1></div>
+  
+    <div style="display: flex; align-items: center; gap: 20px;">
+      <div class="status-badge">
+        <div id="dot" class="pulse-dot"></div>
+        <span id="status-text">System Idle</span>
+      </div>
+      
+      <div class="user-profile" style="display: flex; align-items: center; gap: 12px; font-size: 0.9rem; border-left: 1px solid rgba(255,255,255,0.3); padding-left: 20px;">
+          <span style="font-weight: 600;"><i class="fa-solid fa-user-circle"></i> {{ user_name }}</span>
+          <a href="/logout" class="logout-link" title="Sign Out">
+              <i class="fa-solid fa-right-from-bracket"></i>
+          </a>
+       </div>
+    </div>
+  </header>
+
 
     <div class="container">
       <div class="column">
@@ -98,6 +118,7 @@
             <label>Upload File (Excel/CSV)</label>
             <input type="file" id="file-input" class="highlight-input" />
             <div style="display: flex; gap: 10px; margin-top: 15px;">
+              <span class="upload-now-label">UPLOAD NOW:</span>
               <button class="btn btn-outline" onclick="upload('excel')"><i class="fa-solid fa-file-excel"></i> Excel</button>
               <button class="btn btn-outline" onclick="upload('csv')"><i class="fa-solid fa-file-csv"></i> CSV</button>
             </div>
