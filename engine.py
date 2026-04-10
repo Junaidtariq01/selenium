@@ -17,14 +17,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from openpyxl import load_workbook
 
 # --- CONFIGURATION ---
-# Change from Windows path to a Linux-compatible path
-# For local testing, you can use a conditional check
-if os.name == 'nt':  # Windows
-    PROFILE_PATH = r"C:\selenium-profile"
-else:  # Linux (Render/Railway/Vercel)
-    PROFILE_PATH = "/opt/render/project/src/selenium-profile" # Or simply "./selenium-profile"
-
-# PROFILE_PATH = r"C:\selenium-profile"
+PROFILE_PATH = r"C:\selenium-profile"
 DEFAULT_COUNTRY_CODE = "91"
 TEMP_FILE = "data.xlsx"
 
@@ -52,27 +45,6 @@ def smart_sleep(seconds, action_text="Waiting"):
         time.sleep(1)
         status_data["countdown"] -= 1
     status_data["countdown"] = 0
-
-def setup_driver():
-    options = webdriver.ChromeOptions()
-    
-    # Use a relative path for the profile on Linux
-    linux_profile = os.path.join(os.getcwd(), "selenium-profile")
-    options.add_argument(f"user-data-dir={linux_profile}")
-    
-    # Required Cloud Settings
-    options.add_argument("--headless=new") # Run without a window
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--remote-debugging-port=9222")
-    
-    # User Agent mimicry to avoid bot detection
-    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-    
-    service = Service(ChromeDriverManager().install())
-    return webdriver.Chrome(service=service, options=options)
-
 
 def normalize_number(num):
     if not num: return ""
