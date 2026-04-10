@@ -24,7 +24,8 @@ TEMP_FILE = "data.xlsx"
 status_data = {
     "sent": 0, "failed": 0, "skipped": 0, "total": 0,
     "aborted": False, "running": False, "paused": False,
-    "scheduled_for": None, "countdown": 0, "current_action": "Idle"
+    "scheduled_for": None, "countdown": 0, "current_action": "Idle",
+    "typing_speed": 0
 }
 
 # ---------------- HELPERS ---------------- #
@@ -121,13 +122,42 @@ def send_bulk(data, message, config, schedule_delay=0):
             try:
                 status_data["current_action"] = f"Sending to {phone}"
                 driver.get(f"https://web.whatsapp.com/send?phone={phone}")
-                msg_box = wait.until(EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]')))
-                
+                # msg_box = wait.until(EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]')))                
+              
+                # We wait for either the typing box (Success) OR the "Invalid number" pop-up (Skip)
+                try:
+                    # Combined XPATH: Look for the chat box OR the 'invalid' error text
+                    element = WebDriverWait(driver, 15).until(
+                        EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="10"] | //div[contains(text(), "invalid")] | //div[contains(text(), "not on WhatsApp")]'))
+                    )
+                    
+                    # Check if the found element is the error pop-up
+                    if "invalid" in element.text.lower() or "not on whatsapp" in element.text.lower():
+                        status_data["skipped"] += 1
+                        status_data["current_action"] = f"Skipped: {phone} (Not on WhatsApp)"
+                        # Click the "OK" button to clear the overlay
+                        try:
+                            ok_btn = driver.find_element(By.XPATH, '//div[@role="button"][contains(., "OK")]')
+                            ok_btn.click()
+                        except: pass
+                        continue # Skip to next number
+                    
+                    # If it's the message box, proceed
+                    msg_box = element
+                except:
+                    # If it times out, the number likely doesn't exist or loading failed
+                    status_data["failed"] += 1
+                    continue
+                # --- TYPING & SENDING ---
                 if config.get("TYPING"):
                     for char in msg:
                         if status_data["aborted"]: break
+                        # Select the random speed and save it to status_data
+                        speed = random.uniform(0.03, 0.14)
+                        status_data["typing_speed"] = round(speed * 1000, 0) # Convert to milliseconds
                         msg_box.send_keys(char)
-                        time.sleep(random.uniform(0.02, 0.08))
+                        time.sleep(speed)
+                    status_data["typing_speed"] = 0
                 else:
                     msg_box.send_keys(msg)
                 
@@ -138,7 +168,7 @@ def send_bulk(data, message, config, schedule_delay=0):
             except Exception as e:
                 print(f"Error sending to {phone}: {e}")
                 status_data["failed"] += 1
-
+            # Delays and Cooldowns
             if i < len(data) - 1:
                 delay = random.randint(config["DELAY_MIN"], config["DELAY_MAX"])
                 if (i + 1) % config["BATCH"] == 0:

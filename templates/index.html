@@ -192,6 +192,7 @@
           <div class="stat-item"><span class="stat-label">Skipped</span><span class="stat-val" id="stat-skipped" style="color: var(--warning)">0</span></div>
           <div class="stat-item"><span class="stat-label">Failed</span><span class="stat-val" id="stat-failed" style="color: var(--danger)">0</span></div>
           <div class="stat-item"><span class="stat-label">Total</span><span class="stat-val" id="stat-total">0</span></div>
+          <div class="stat-item"><span class="stat-label">Speed</span><span class="stat-val" id="stat-speed" style="color: var(--primary-dark)">0</span><span style="font-size: 0.6rem; color: var(--text-muted)">ms/char</span></div>
         </div>
 
         <div style="display: flex; gap: 10px;">
@@ -292,6 +293,7 @@
             document.getElementById("stat-failed").innerText = data.failed;
             document.getElementById("stat-skipped").innerText = data.skipped;
             document.getElementById("stat-total").innerText = data.total;
+            document.getElementById("stat-speed").innerText = data.typing_speed;
             document.getElementById("stat-timer").innerText = data.countdown + "s";
             document.getElementById("current-action-display").innerText = data.current_action;
   
