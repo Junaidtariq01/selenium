@@ -189,6 +189,7 @@
         <div class="stats-summary">
           <div class="stat-item"><span class="stat-label">Timer</span><span class="stat-val" id="stat-timer" style="color: var(--info)">0s</span></div>
           <div class="stat-item"><span class="stat-label">Sent</span><span class="stat-val" id="stat-sent">0</span></div>
+          <div class="stat-item"><span class="stat-label">Skipped</span><span class="stat-val" id="stat-skipped" style="color: var(--warning)">0</span></div>
           <div class="stat-item"><span class="stat-label">Failed</span><span class="stat-val" id="stat-failed" style="color: var(--danger)">0</span></div>
           <div class="stat-item"><span class="stat-label">Total</span><span class="stat-val" id="stat-total">0</span></div>
         </div>
@@ -289,6 +290,7 @@
             
             document.getElementById("stat-sent").innerText = data.sent;
             document.getElementById("stat-failed").innerText = data.failed;
+            document.getElementById("stat-skipped").innerText = data.skipped;
             document.getElementById("stat-total").innerText = data.total;
             document.getElementById("stat-timer").innerText = data.countdown + "s";
             document.getElementById("current-action-display").innerText = data.current_action;

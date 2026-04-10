@@ -133,7 +133,7 @@ def send_bulk(data, message, config, schedule_delay=0):
                 
                 time.sleep(1.5) # Buffer before enter
                 msg_box.send_keys(Keys.ENTER)
-                time.sleep(1) # Wait for send tick
+                time.sleep(3) # Wait for send tick
                 status_data["sent"] += 1
             except Exception as e:
                 print(f"Error sending to {phone}: {e}")
