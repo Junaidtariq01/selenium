@@ -2,3 +2,5 @@ flask
 selenium
 webdriver-manager
 openpyxl
+flask-sqlalchemy
+flask-login

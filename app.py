@@ -1,236 +1,99 @@
 import os
-import threading
-import time
-import random
-import urllib.parse
-import re
-import csv
-import requests
-import io
-from datetime import datetime
-from flask import Flask, request, jsonify, render_template
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
-from openpyxl import load_workbook
+import json
+from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+
+# Import the automation engine
+import engine
 
 app = Flask(__name__)
 
 # --- CONFIGURATION ---
-PROFILE_PATH = r"C:\selenium-profile"
-DEFAULT_COUNTRY_CODE = "91"
+app.config['SECRET_KEY'] = 'singularity-pro-secure-key-2026'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-status_data = {
-    "sent": 0,
-    "failed": 0,
-    "skipped": 0,
-    "total": 0,
-    "aborted": False,
-    "running": False,
-    "scheduled_for": None 
-}
+db = SQLAlchemy(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 
-def setup_driver():
-    options = webdriver.ChromeOptions()
-    options.add_argument(f"user-data-dir={PROFILE_PATH}")
-    options.add_argument("--remote-debugging-port=9222")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+# --- DATABASE MODEL ---
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100))
+    email = db.Column(db.String(100), unique=True)
+    password = db.Column(db.String(200))
 
-def normalize_number(num):
-    num = re.sub(r"\D", "", str(num))
-    if len(num) == 10: num = DEFAULT_COUNTRY_CODE + num
-    return num
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
-def is_valid_number(num):
-    return re.fullmatch(r"\d{12,13}", num) is not None
+# --- AUTH ROUTES ---
 
-def process_numbers(raw):
-    global status_data
-    seen = set()
-    clean = []
-    skipped_count = 0
-    for r in raw:
-        num = normalize_number(r.get("number"))
-        name = r.get("name", "User")
-        if not is_valid_number(num) or num in seen:
-            skipped_count += 1
-            continue
-        seen.add(num)
-        clean.append({"name": name, "number": num})
-    status_data["skipped"] = skipped_count
-    return clean
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        user = User.query.filter_by(email=email).first()
+        if user and check_password_hash(user.password, password):
+            login_user(user)
+            return redirect(url_for('index'))
+        flash('Invalid email or password.', 'error')
+    return render_template('login.html')
 
-def read_excel(path):
-    try:
-        wb = load_workbook(path)
-        sheet = wb.active
-        raw = [{"name": r[0] or "User", "number": r[1]} for r in sheet.iter_rows(min_row=2, values_only=True) if r[1]]
-        return process_numbers(raw)
-    except: return []
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        name, email, password = request.form.get('name'), request.form.get('email'), request.form.get('password')
+        try:
+            with open('input.json', 'r') as f:
+                allowed = json.load(f)
+        except FileNotFoundError:
+            flash("System Error: Authorization file missing.", "error")
+            return redirect(url_for('signup'))
 
-def read_csv(file_storage):
-    try:
-        content = file_storage.read().decode('utf-8')
-        reader = csv.reader(io.StringIO(content))
-        next(reader, None)
-        raw = [{"name": r[0] or "User", "number": r[1]} for r in reader if len(r) >= 2]
-        return process_numbers(raw)
-    except: return []
+        if not any(m['email'].lower() == email.lower() for m in allowed):
+            flash("Your email is not authorized for access.", "error")
+            return redirect(url_for('signup'))
 
-def read_google_sheet(url):
-    try:
-        if "docs.google.com" in url: url = url.split('/edit')[0] + "/export?format=csv"
-        res = requests.get(url)
-        reader = csv.reader(io.StringIO(res.text))
-        next(reader, None)
-        raw = [{"name": r[0] or "User", "number": r[1]} for r in reader if len(r) >= 2]
-        return process_numbers(raw)
-    except: return []
+        if User.query.filter_by(email=email).first():
+            flash("Email already registered.", "error")
+            return redirect(url_for('signup'))
 
-# ---------------- SENDER ENGINE ---------------- #
+        new_user = User(name=name, email=email, password=generate_password_hash(password, method='pbkdf2:sha256'))
+        db.session.add(new_user)
+        db.session.commit()
+        flash("Registration successful!", "success")
+        return redirect(url_for('login'))
+    return render_template('signup.html')
 
-def send_bulk(data, message, config, schedule_delay=0):
-    global status_data
-    status_data["aborted"] = False # Reset abort flag at start
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
 
-    if schedule_delay > 0:
-        end_time = time.time() + schedule_delay
-        while time.time() < end_time:
-            if status_data["aborted"]:
-                status_data["scheduled_for"] = None
-                return
-            time.sleep(1)
-
-    status_data["sent"] = 0
-    status_data["failed"] = 0
-    status_data["total"] = len(data)
-    status_data["running"] = True
-    status_data["scheduled_for"] = None
-
-    driver = None
-    try:
-        driver = setup_driver()
-        driver.get("https://web.whatsapp.com")
-        wait = WebDriverWait(driver, 60)
-        wait.until(EC.presence_of_element_located((By.ID, "pane-side")))
-
-        for i, user in enumerate(data):
-            if status_data["aborted"] or not status_data["running"]: break
-            
-            phone = user['number']
-            msg = message.replace("{name}", user['name'])
-            
-            try:
-                url = f"https://web.whatsapp.com/send?phone={phone}&text={urllib.parse.quote(msg)}"
-                driver.get(url)
-                msg_box = wait.until(EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]')))
-                time.sleep(2)
-                msg_box.send_keys(Keys.ENTER)
-                status_data["sent"] += 1
-            except:
-                status_data["failed"] += 1
-
-            time.sleep(random.randint(config["DELAY_MIN"], config["DELAY_MAX"]))
-            
-            # Check abort during batch cooldown
-            if (i + 1) % config["BATCH"] == 0 and (i + 1) < len(data):
-                cooldown = random.randint(config["COOL_MIN"], config["COOL_MAX"])
-                end_cool = time.time() + cooldown
-                while time.time() < end_cool:
-                    if status_data["aborted"]: break
-                    time.sleep(1)
-    finally:
-        if driver: driver.quit()
-        status_data["running"] = False
-        status_data["aborted"] = False
-
-    # ✅ DELETE FILE AFTER SUCCESS
-    try:
-        if status_data["sent"] > 0 and os.path.exists("data.xlsx"):
-            os.remove("data.xlsx")
-            print("🗑️ data.xlsx deleted after sending")
-    except Exception as e:
-        print(f"⚠️ Could not delete file: {e}")
-
-
-# ---------------- ROUTES ---------------- #
+# --- DASHBOARD & ENGINE CONNECTORS ---
 
 @app.route('/')
+@login_required
 def index():
-    return render_template("index.html")
+    return render_template("index.html", user_name=current_user.name)
 
-@app.route('/upload_excel', methods=['POST'])
-def upload_excel():
-    f = request.files['file']
-    f.save("data.xlsx")
-    contacts = read_excel("data.xlsx")
-    return jsonify({"count": len(contacts)})
-
-@app.route('/upload_csv', methods=['POST'])
-def upload_csv():
-    f = request.files['file']
-    contacts = read_csv(f)
-    return jsonify({"count": len(contacts)})
-
-@app.route('/google_sheet', methods=['POST'])
-def google_sheet():
-    url = request.json.get("url")
-    contacts = read_google_sheet(url)
-    return jsonify({"count": len(contacts)})
-
-@app.route('/abort', methods=['POST'])
-def abort():
-    global status_data
-    status_data["aborted"] = True
-    status_data["running"] = False
-    status_data["scheduled_for"] = None
-    return jsonify({"status": "stopping"})
-
-@app.route('/send', methods=['POST'])
-def send():
-    req = request.json
-    config = {
-        "DELAY_MIN": int(req.get("dmin", 10)),
-        "DELAY_MAX": int(req.get("dmax", 50)),
-        "BATCH": int(req.get("batch", 10)),
-        "COOL_MIN": int(req.get("cmin", 2)) * 60,
-        "COOL_MAX": 300
-    }
-
-    if req.get("numbers"):
-        raw = [{"name": "User", "number": n.strip()} for n in req.get("numbers").replace('\n', ',').split(",") if n.strip()]
-        data = process_numbers(raw)
-    else:
-        data = read_excel("data.xlsx")
-
-    if not data:
-        return jsonify({"error": "No valid numbers found. Please import a file or enter numbers."}), 400
-
-    schedule_delay = 0
-    sched_time_str = req.get("schedule_time")
-    if sched_time_str:
-        try:
-            # Standard HTML datetime-local format is YYYY-MM-DDTHH:MM
-            sched_time = datetime.strptime(sched_time_str, "%Y-%m-%dT%H:%M")
-            now = datetime.now()
-            if sched_time > now:
-                schedule_delay = (sched_time - now).total_seconds()
-                status_data["scheduled_for"] = sched_time_str
-        except Exception as e:
-            print(f"Schedule Parse Error: {e}")
-
-    threading.Thread(target=send_bulk, args=(data, req.get("message"), config, schedule_delay)).start()
-    return jsonify({"total": len(data), "scheduled": schedule_delay > 0})
-
-@app.route('/status')
-def status():
-    return jsonify(status_data)
+# Map Engine Functions to Flask Routes
+app.add_url_rule('/status', view_func=engine.get_status)
+app.add_url_rule('/send', view_func=engine.start_campaign, methods=['POST'])
+app.add_url_rule('/pause', view_func=engine.pause_campaign, methods=['POST'])
+app.add_url_rule('/resume', view_func=engine.resume_campaign, methods=['POST'])
+app.add_url_rule('/abort', view_func=engine.abort_campaign, methods=['POST'])
+app.add_url_rule('/upload_excel', view_func=engine.upload_excel, methods=['POST'])
+app.add_url_rule('/upload_csv', view_func=engine.upload_csv, methods=['POST'])
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    with app.app_context():
+        db.create_all()
+    app.run(debug=True, port=5000, use_reloader=False) # use_reloader=False prevents double Selenium triggers
