@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Singularity Pro | Command Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <style>
+        :root {
+            --primary: #0f172a; /* Navy */
+            --accent: #2563eb;  /* Blue */
+            --success: #10b981; /* Emerald */
+            --warning: #f59e0b; /* Amber */
+            --danger: #ef4444;  /* Red */
+            --info: #3b82f6;    /* Sky */
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: "Inter", sans-serif; background-color: var(--bg); color: var(--text-main); line-height: 1.6; padding-bottom: 140px; }
+
+        /* Notification System */
+        #notification-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { padding: 12px 20px; border-radius: 10px; color: white; font-weight: 500; font-size: 0.9rem; min-width: 300px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); animation: slideIn 0.3s ease-out forwards; display: flex; align-items: center; gap: 12px; }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.info { background: var(--primary); }
+
+        /* Header */
+        header { 
+            background: var(--primary); color: white; padding: 0.75rem 5%; 
+            display: flex; justify-content: space-between; align-items: center; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); position: sticky; top: 0; z-index: 1000; 
+        }
+        
+        .brand { display: flex; align-items: center; gap: 10px; }
+        .brand i { color: var(--accent); font-size: 1.5rem; }
+
+        .header-right { display: flex; align-items: center; gap: 20px; }
+        .status-badge { background: rgba(255,255,255,0.1); padding: 6px 16px; border-radius: 30px; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 8px; border: 1px solid rgba(255,255,255,0.1); }
+        .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; transition: all 0.3s ease; }
+        .pulse-dot.active { background: var(--success); box-shadow: 0 0 10px var(--success); animation: pulse 1.5s infinite; }
+
+        .user-profile { display: flex; align-items: center; gap: 15px; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 20px; }
+        .logout-link { color: white; text-decoration: none; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(239, 68, 68, 0.2); transition: all 0.2s; }
+        .logout-link:hover { background: var(--danger); transform: translateY(-1px); }
+
+        /* Main Layout */
+        .container { max-width: 1300px; margin: 2rem auto; padding: 0 20px; display: grid; grid-template-columns: 1fr 1.6fr; gap: 25px; }
+        .card { background: var(--card-bg); border-radius: 16px; padding: 1.75rem; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: box-shadow 0.3s ease; }
+        .card:hover { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
+        
+        h3 { font-size: 0.85rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; color: var(--primary); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+        h3 i { color: var(--accent); }
+
+        /* Inputs */
+        .form-group { margin-bottom: 1.25rem; }
+        label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 8px; color: var(--text-muted); text-transform: uppercase; }
+        input, textarea { 
+            width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 10px; 
+            font-size: 0.9rem; font-family: inherit; transition: all 0.2s; background: #fafafa;
+        }
+        input:focus, textarea:focus { outline: none; border-color: var(--accent); background: #fff; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.05); }
+        textarea { resize: vertical; }
+
+        /* Buttons */
+        .btn { cursor: pointer; padding: 10px 18px; border-radius: 10px; border: none; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; font-size: 0.8rem; font-family: inherit; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
+        .btn-outline { border: 1.5px solid var(--border); background: white; color: var(--text-main); }
+        .btn-outline:hover { background: #f1f5f9; border-color: #cbd5e1; }
+
+        /* Special Components */
+        .upload-section { background: #f8fafc; border: 2px dashed var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+        .upload-controls { display: flex; justify-content: center; gap: 10px; margin-top: 15px; }
+
+        .anti-ban-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: #f1f5f9; padding: 15px; border-radius: 12px; }
+        .toggle-item { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; font-weight: 600; color: var(--text-main); cursor: pointer; }
+        .toggle-item input { width: auto; cursor: pointer; accent-color: var(--accent); }
+
+        /* Footer Status Bar */
+        .footer-status { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 1.25rem 5%; border-top: 1px solid var(--border); box-shadow: 0 -10px 15px -3px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 40px; z-index: 1000; }
+        .progress-section { flex-grow: 1; }
+        .progress-meta { display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 700; margin-bottom: 10px; }
+        .progress-track { height: 12px; background: #f1f5f9; border-radius: 20px; overflow: hidden; border: 1px solid var(--border); }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); width: 0%; transition: width 0.4s ease; border-radius: 20px; }
+        
+        .stats-summary { display: flex; gap: 20px; border-left: 2px solid var(--border); padding-left: 25px; }
+        .stat-item { text-align: center; min-width: 60px; }
+        .stat-label { font-size: 0.65rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
+        .stat-val { font-size: 1.1rem; font-weight: 800; color: var(--primary); display: block; }
+
+        /* Action Buttons */
+        .action-btns { display: flex; gap: 12px; }
+        .btn-action { min-width: 140px; justify-content: center; height: 48px; border-radius: 12px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .btn-start { background: var(--accent); color: white; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3); }
+        .btn-stop { background: var(--danger); color: white; }
+        .btn-pause { background: var(--warning); color: white; }
+        .btn-resume { background: var(--success); color: white; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div id="notification-container"></div>
+
+    <header>
+        <div class="brand">
+            <i class="fa-solid fa-atom"></i>
+            <h1 style="font-size: 1.25rem; font-weight: 800; letter-spacing: -0.025em;">SINGULARITY <span style="font-weight: 300; opacity: 0.8;">PRO</span></h1>
+        </div>
+      
+        <div class="header-right">
+            <div class="status-badge">
+                <div id="dot" class="pulse-dot"></div>
+                <span id="status-text">SYSTEM IDLE</span>
+            </div>
+          
+            <div class="user-profile">
+                <span style="font-weight: 700; font-size: 0.85rem;"><i class="fa-solid fa-circle-user" style="color: var(--accent);"></i> {{ user_name }}</span>
+                <a href="/logout" class="logout-link" title="Sign Out">
+                    <i class="fa-solid fa-power-off"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="column">
+            <div class="card" style="margin-bottom: 25px">
+                <h3><i class="fa-solid fa-cloud-arrow-up"></i> 1. Import Data</h3>
+                <div class="upload-section">
+                    <label>Select Spreadsheet</label>
+                    <input type="file" id="file-input" style="padding: 8px; border: none; background: transparent;"/>
+                    <div class="upload-controls">
+                        <button class="btn btn-outline" onclick="upload('excel')"><i class="fa-solid fa-file-excel" style="color:#1D6F42"></i> Excel</button>
+                        <button class="btn btn-outline" onclick="upload('csv')"><i class="fa-solid fa-file-csv" style="color:#0E90D2"></i> CSV</button>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top:20px">
+                    <label>Google Sheet Cloud Link</label>
+                    <div style="display: flex; gap: 8px">
+                        <input type="text" id="gsheet" placeholder="Paste shared link..." />
+                        <button class="btn btn-primary" onclick="loadSheet()">Connect</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><i class="fa-solid fa-list-check"></i> 2. Recipient List</h3>
+                <textarea id="numbers" placeholder="91600XXXXXXX, 9188XXXXXXXX..." style="min-height: 280px;"></textarea>
+                <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 10px; font-weight: 500;">
+                    <i class="fa-solid fa-info-circle"></i> Numbers are automatically normalized.
+                </p>
+            </div>
+        </div>
+
+        <div class="column">
+            <div class="card" style="margin-bottom: 25px">
+                <h3><i class="fa-solid fa-pen-nib"></i> 3. Message Template</h3>
+                <textarea id="msg" style="min-height: 200px;">Hello {name}, {how are you|hope you are well}!</textarea>
+                <div style="background: #fdf6ec; border-radius: 8px; padding: 10px; margin-top: 10px; border: 1px solid #faecd8;">
+                    <p style="font-size: 0.7rem; color: #b88230; font-weight: 600;">
+                        Pro Tip: Use <b>{name}</b> for dynamic tags and <b>{Hi|Hello}</b> for random spintax rotation.
+                    </p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><i class="fa-solid fa-shield-halved"></i> 4. Automation & Anti-Ban</h3>
+                <div class="settings-grid">
+                    <div class="form-group"><label>Min Interval (s)</label><input type="number" id="dmin" value="15" /></div>
+                    <div class="form-group"><label>Max Interval (s)</label><input type="number" id="dmax" value="45" /></div>
+                    <div class="form-group"><label>Batch Volume</label><input type="number" id="batch" value="5" /></div>
+                    <div class="form-group"><label>Cooldown (m)</label><input type="number" id="cmin" value="2" /></div>
+                </div>
+
+                <div class="anti-ban-grid">
+                    <label class="toggle-item"><input type="checkbox" id="chk-typing" checked> <span>Human Typing</span></label>
+                    <label class="toggle-item"><input type="checkbox" id="chk-spintax" checked> <span>AI Spintax Rotation</span></label>
+                    <label class="toggle-item"><input type="checkbox" id="chk-hours"> <span>Safe Hours Only</span></label>
+                </div>
+
+                <div class="form-group" style="margin-top: 1.5rem;">
+                    <label><i class="fa-solid fa-calendar-check"></i> Schedule Dispatch</label>
+                    <input type="datetime-local" id="schedule_time" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-status">
+        <div class="progress-section">
+            <div class="progress-meta">
+                <span id="current-action-display" style="color: var(--accent); font-weight: 800; text-transform: uppercase; font-size: 0.75rem;">System Ready</span>
+                <span id="prog-perc">0%</span>
+            </div>
+            <div class="progress-track"><div id="prog-bar" class="progress-fill"></div></div>
+        </div>
+        
+        <div class="stats-summary">
+            <div class="stat-item"><span class="stat-label">Timer</span><span class="stat-val" id="stat-timer" style="color: var(--info)">0s</span></div>
+            <div class="stat-item"><span class="stat-label">Sent</span><span class="stat-val" id="stat-sent" style="color: var(--success)">0</span></div>
+            <div class="stat-item"><span class="stat-label">Skipped</span><span class="stat-val" id="stat-skipped" style="color: var(--warning)">0</span></div>
+            <div class="stat-item"><span class="stat-label">Failed</span><span class="stat-val" id="stat-failed" style="color: var(--danger)">0</span></div>
+            <div class="stat-item"><span class="stat-label">Total</span><span class="stat-val" id="stat-total">0</span></div>
+            <div class="stat-item"><span class="stat-label">Speed</span><span class="stat-val" id="stat-speed">0</span></div>
+        </div>
+
+        <div class="action-btns">
+            <button class="btn btn-action btn-start" id="start-btn" onclick="startCampaign()">
+                <i class="fa-solid fa-bolt"></i> Launch
+            </button>
+            <button class="btn btn-action btn-pause" id="pause-btn" onclick="pauseCampaign()" style="display:none;">
+                <i class="fa-solid fa-pause"></i> Pause
+            </button>
+            <button class="btn btn-action btn-resume" id="resume-btn" onclick="resumeCampaign()" style="display:none;">
+                <i class="fa-solid fa-play"></i> Resume
+            </button>
+            <button class="btn btn-action btn-stop" id="abort-btn" onclick="abortCampaign()" style="display:none;">
+                <i class="fa-solid fa-square-stop"></i> Stop
+            </button>
+        </div>
+    </div>
+  
+    <script>
+        // --- BACKEND LOGIC (PRESERVED) ---
+
+        function notify(message, type = "success") {
+            const container = document.getElementById("notification-container");
+            const toast = document.createElement("div");
+            toast.className = `toast ${type}`;
+            const icon = type === "success" ? "circle-check" : type === "error" ? "circle-exclamation" : "circle-info";
+            toast.innerHTML = `<i class="fa-solid fa-${icon}"></i> ${message}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+  
+        async function upload(type) {
+            const file = document.getElementById("file-input").files[0];
+            if (!file) return notify("Please select a file first", "error");
+            let fd = new FormData();
+            fd.append("file", file);
+            const res = await fetch(`/upload_${type}`, { method: "POST", body: fd });
+            const data = await res.json();
+            notify(`Imported ${data.count} contacts successfully.`);
+        }
+  
+        async function loadSheet() {
+            const url = document.getElementById("gsheet").value;
+            if (!url) return notify("Please enter a Google Sheet URL", "error");
+            const res = await fetch("/google_sheet", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url }),
+            });
+            const data = await res.json();
+            notify(`Linked ${data.count} contacts from Sheet.`);
+        }
+  
+        async function startCampaign() {
+            const payload = {
+                numbers: document.getElementById("numbers").value.trim(),
+                message: document.getElementById("msg").value,
+                dmin: document.getElementById("dmin").value,
+                dmax: document.getElementById("dmax").value,
+                batch: document.getElementById("batch").value,
+                cmin: document.getElementById("cmin").value,
+                schedule_time: document.getElementById("schedule_time").value,
+                typing: document.getElementById("chk-typing").checked,
+                spintax: document.getElementById("chk-spintax").checked,
+                safe_hours: document.getElementById("chk-hours").checked
+            };
+  
+            const res = await fetch("/send", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+  
+            const data = await res.json();
+            if (data.error) notify(data.error, "error");
+            else notify(data.scheduled ? "Campaign Scheduled!" : "Campaign Started!");
+        }
+  
+        async function abortCampaign() {
+            await fetch("/abort", { method: "POST" });
+            notify("Terminating campaign process...", "info");
+        }
+
+        async function pauseCampaign() {
+            await fetch("/pause", { method: "POST" });
+            notify("Dispatch Paused", "info");
+        }
+
+        async function resumeCampaign() {
+            await fetch("/resume", { method: "POST" });
+            notify("Dispatch Resumed", "success");
+        }
+  
+        setInterval(async () => {
+            try {
+                const res = await fetch("/status");
+                const data = await res.json();
+                
+                document.getElementById("stat-sent").innerText = data.sent;
+                document.getElementById("stat-failed").innerText = data.failed;
+                document.getElementById("stat-skipped").innerText = data.skipped;
+                document.getElementById("stat-total").innerText = data.total;
+                document.getElementById("stat-speed").innerText = data.typing_speed;
+                document.getElementById("stat-timer").innerText = data.countdown + "s";
+                document.getElementById("current-action-display").innerText = data.current_action;
+  
+                if (data.total > 0) {
+                    const perc = Math.round(((data.sent + data.failed) / data.total) * 100);
+                    document.getElementById("prog-bar").style.width = perc + "%";
+                    document.getElementById("prog-perc").innerText = perc + "%";
+                }
+  
+                const dot = document.getElementById("dot");
+                const statusText = document.getElementById("status-text");
+                const startBtn = document.getElementById("start-btn");
+                const pauseBtn = document.getElementById("pause-btn");
+                const resumeBtn = document.getElementById("resume-btn");
+                const abortBtn = document.getElementById("abort-btn");
+  
+                if (data.running || data.scheduled_for) {
+                    startBtn.style.display = "none";
+                    abortBtn.style.display = "flex";
+                    dot.classList.add("active");
+
+                    if (data.paused) {
+                        pauseBtn.style.display = "none";
+                        resumeBtn.style.display = "flex";
+                        statusText.innerText = "PAUSED";
+                        dot.style.background = "#f59e0b";
+                    } else {
+                        pauseBtn.style.display = "flex";
+                        resumeBtn.style.display = "none";
+                        statusText.innerText = data.running ? "ACTIVE" : "SCHEDULED";
+                        dot.style.background = data.running ? "#10b981" : "#3b82f6";
+                    }
+                } else {
+                    startBtn.style.display = "flex";
+                    pauseBtn.style.display = "none";
+                    resumeBtn.style.display = "none";
+                    abortBtn.style.display = "none";
+                    dot.classList.remove("active");
+                    dot.style.background = "#94a3b8";
+                    statusText.innerText = "SYSTEM IDLE";
+                }
+            } catch (e) {}
+        }, 1000);
+    </script>
+</body>
+</html>
