@@ -46,10 +46,14 @@
 
       /* Main Layout */
       .container { max-width: 1300px; margin: 2rem auto; padding: 0 20px; display: grid; grid-template-columns: 1fr 1.6fr; gap: 25px; }
-      .card { background: var(--card-bg); border-radius: 16px; padding: 1.75rem; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+      .card { background: var(--card-bg); border-radius: 16px; padding: 1.75rem; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
       h3 { margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; color: var(--primary2); text-transform: uppercase; letter-spacing: 0.02em; font-weight: 800; }
-
+      
+      .card:hover {transform: translateY(-6px); border-color: var(--accent); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+      /* Optional: Subtle glow for the icons when the card is hovered */
+      .card:hover h3 i {color: var(--primary2);transform: scale(1.5);transition: 0.3s;}
       /* Form Elements */
+      
       .form-group { margin-bottom: 1.25rem; }
       label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 8px; color: var(--text-muted); text-transform: uppercase; }
       input, textarea { width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 0.9rem; font-family: inherit; transition: 0.2s; background: #fafafa; }
@@ -86,9 +90,8 @@
       .toggle-group input { width: auto; cursor: pointer; } */
       
       .anti-ban-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: #f1f5f9; padding: 15px; border-radius: 12px; }
-      .toggle-item { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; font-weight: 600; color: var(--text-main); cursor: pointer; }
+      .toggle-item { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; font-weight: 600; color: var(--text-main); cursor: pointer; }
       .toggle-item input { width: auto; cursor: pointer; accent-color: var(--accent); }
-
 
       /* Buttons */
       .btn { cursor: pointer; padding: 10px 18px; border-radius: 10px; border: none; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; font-size: 0.8rem; }
@@ -108,10 +111,82 @@
       .stat-label { font-size: 0.65rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
       .stat-val { font-size: 1.1rem; font-weight: 800; color: var(--primary); display: block; }
 
+
+/* Container styling for the specific input */
+#schedule_time {
+  cursor: pointer;
+  color: var(--text-main);
+  background-color: #fafafa;
+  border: 1.5px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+/* Hover & Focus states */
+#schedule_time:hover {
+  background-color: #ffffff;
+  border-color: var(--accent);
+}
+
+#schedule_time:focus {
+  outline: none;
+  background-color: #ffffff;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.05);
+}
+
+
+/* Styling the Calendar Icon (Webkit browsers like Chrome/Edge) */
+#schedule_time::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 5px;
+  filter: invert(48%) sepia(82%) saturate(2421%) hue-rotate(210deg) brightness(94%) contrast(92%); /* Changes icon to match var(--accent) blue */
+  transition: 0.2s;
+}
+
+#schedule_time::-webkit-calendar-picker-indicator:hover {
+  background-color: rgba(37, 99, 235, 0.1);
+  transform: scale(1.1);
+}
+
+/* Styling the text edit fields inside the input */
+#schedule_time::-webkit-datetime-edit-fields-wrapper {
+  padding: 2px;
+}
+
+#schedule_time::-webkit-datetime-edit-text {
+  color: var(--text-muted);
+  padding: 0 2px;
+}
+
+#schedule_time::-webkit-datetime-edit-month-field,
+#schedule_time::-webkit-datetime-edit-day-field,
+#schedule_time::-webkit-datetime-edit-year-field,
+#schedule_time::-webkit-datetime-edit-hour-field,
+#schedule_time::-webkit-datetime-edit-minute-field,
+#schedule_time::-webkit-datetime-edit-ampm-field {
+  color: var(--primary);
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 0 2px;
+}
+
+/* Highlights the specific field being edited */
+#schedule_time::-webkit-datetime-edit-month-field:focus,
+#schedule_time::-webkit-datetime-edit-day-field:focus,
+#schedule_time::-webkit-datetime-edit-year-field:focus {
+  background-color: var(--accent);
+  color: white;
+  outline: none;
+}
+
+
+
+
       .action-btns { display: flex; gap: 12px; }
       .btn-action { min-width: 140px; justify-content: center; height: 48px; border-radius: 12px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; }
       .btn-start { background: var(--accent); color: white; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3); }
-
+      .btn-start:hover {background: var(--primary2);box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.4);transform: translateY(-2px);}
       @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
       @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
@@ -142,7 +217,7 @@
           <h3><i class="fa-solid fa-cloud-arrow-up"></i> 1. Import Data</h3>
           <div class="form-group">
             <label>Choose File (Excel/CSV)</label>
-            <input type="file" id="file-input" class="custom-file-input" />
+            <input type="file" id="file-input" class="custom-file-input" accept=".csv, .xls, .xlsx, text/csv, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
             <div style="display: flex; margin-top: 15px;">
               <span class="import-label">IMPORT:</span>
               <button class="btn btn-outline" style="margin-right: 8px;" onclick="upload('excel')"><i class="fa-solid fa-file-excel" style="color:#1D6F42"></i> EXCEL</button>
@@ -158,9 +233,13 @@
           </div>
         </div>
 
+<div class="form-group" style="margin-top: 15px;">
+    <label><i class="fa-solid fa-paperclip"></i> Send Attachment ( PREMIUM )</label>
+    <input type="file" id="attachment-input" class="highlight-input custom-file-input" accept="image/*,.pdf,.doc,.docx,.video/*" />
+</div>
         <div class="card">
           <h3><i class="fa-solid fa-list-check"></i> 2. MANUAL ENTRY</h3>
-          <textarea id="numbers" placeholder="91600XXXXXXX, 9188XXXXXXXX..." style="min-height: 280px;"></textarea>
+          <textarea id="numbers" placeholder="91600XXXXXXX, 9188XXXXXXXX..." style="min-height: 270px;"></textarea>
                 <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 10px; font-weight: 500;">
                     <i class="fa-solid fa-info-circle"></i> Numbers are automatically normalized.
                 </p>        
@@ -170,7 +249,7 @@
       <div class="column">
         <div class="card" style="margin-bottom: 25px">
           <h3><i class="fa-solid fa-pen-nib"></i> 3. Message Template</h3>
-          <textarea id="msg" style="min-height: 200px;">Hello {name}, {how are you|hope you are well}!</textarea>
+          <textarea id="msg" style="min-height: 200px; font-size:large;">Hello {name}, {how are you | hope you are well}!</textarea>
                 <div style="background: #fdf6ec; border-radius: 8px; padding: 10px; margin-top: 10px; border: 1px solid #faecd8;">
                     <p style="font-size: 0.7rem; color: #b88230; font-weight: 600;">
                         Pro Tip: Use <b>{name}</b> for dynamic tags and <b>{Hi|Hello}</b> for random spintax rotation.
@@ -181,10 +260,10 @@
         <div class="card">
           <h3><i class="fa-solid fa-shield-halved"></i> 4. Automation Settings</h3>
           <div class="settings-grid">
-            <div class="form-group"><label>Min Interval (s)</label><input type="number" id="dmin" value="15" /></div>
-            <div class="form-group"><label>Max Interval (s)</label><input type="number" id="dmax" value="45" /></div>
-            <div class="form-group"><label>Batch Size (no of messages)</label><input type="number" id="batch" value="5" /></div>
-            <div class="form-group"><label>Cooldown (minutes)</label><input type="number" id="cmin" value="2" /></div>
+            <div class="form-group"><label>Min Interval (s)</label><input type="number" class="number-input" id="dmin" value="15" min="1" oninput="this.value = this.value.replace(/[^0-9]/g, '')" /></div>
+            <div class="form-group"><label>Max Interval (s)</label><input type="number" id="dmax" value="45" min="2" oninput="this.value = this.value.replace(/[^0-9]/g, '')"  /></div>
+            <div class="form-group"><label>Batch Size (no of messages)</label><input type="number" id="batch" value="5" min="1" max="100" oninput="this.value = this.value.replace(/[^0-9]/g, '')"  /></div>
+            <div class="form-group"><label>Cooldown (minutes)</label><input type="number" id="cmin" value="2" min="0" max="1000" oninput="this.value = this.value.replace(/[^0-9]/g, '')"  /></div>
           </div>
 
           <div class="anti-ban-grid">
@@ -193,8 +272,8 @@
               <label class="toggle-item"><input type="checkbox" id="chk-hours"> <span>Safe Hours (9-9)</span></label>
           </div>
 
-          <div class="form-group" style="margin-top: 1.5rem;">
-            <label><i class="fa-solid fa-calendar-check"></i> Schedule Dispatch</label>
+          <div class="form-group" style="margin-top: 1.5rem; ">
+            <label style="font-size: 0.9rem;"><i class="fa-solid fa-calendar-check"></i> Schedule Dispatch</label>
             <input type="datetime-local" id="schedule_time" />
           </div>
         </div>
@@ -204,7 +283,7 @@
     <div class="footer-status">
       <div class="progress-section">
         <div class="progress-meta">
-          <span id="current-action-display" style="color: var(--accent); font-weight: 800; text-transform: uppercase; font-size: 0.75rem;">System Idle</span>
+          <span id="current-action-display" style="color: var(--accent); font-weight: 800; text-transform: uppercase; font-size: 1rem;">System Idle</span>
           <span id="prog-perc">0%</span>
         </div>
         <div class="progress-track"><div id="prog-bar" class="progress-fill"></div></div>
