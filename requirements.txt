@@ -4,3 +4,4 @@ flask-login
 selenium
 webdriver-manager
 openpyxl
+pyautogui

@@ -71,6 +71,15 @@ def signup():
         return redirect(url_for('login'))
     return render_template('signup.html')
 
+
+
+# @app.route('/clear_notice', methods=['POST'])
+# @login_required
+# def clear_notice():
+#     engine.status_data["show_notice"] = False
+#     return jsonify({"status": "cleared"})
+
+
 @app.route('/logout')
 @login_required
 def logout():
@@ -93,6 +102,7 @@ app.add_url_rule('/resume', view_func=engine.resume_campaign, methods=['POST'])
 app.add_url_rule('/abort', view_func=engine.abort_campaign, methods=['POST'])
 app.add_url_rule('/upload_excel', view_func=engine.upload_excel, methods=['POST'])
 app.add_url_rule('/upload_csv', view_func=engine.upload_csv, methods=['POST'])
+app.add_url_rule('/upload_attachment', view_func=engine.upload_attachment, methods=['POST'])
 
 if __name__ == '__main__':
     with app.app_context():

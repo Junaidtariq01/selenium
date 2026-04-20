@@ -180,7 +180,75 @@
   outline: none;
 }
 
+.alert-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(15, 23, 42, 0.4); /* Subtle Navy Tint */
+    backdrop-filter: blur(12px); /* Strong background blur */
+    display: none; /* Hidden until triggered by backend */
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
 
+.alert-box {
+    background: var(--card-bg); /* White background */
+    width: 450px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border); /* */
+    border-top: 5px solid var(--accent); /* Blue accent top bar */
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+    animation: alertPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.alert-title {
+    padding: 15px 20px 10px;
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--primary); /* Navy */
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.alert-title i { color: red; }
+
+.alert-content {
+    padding: 0 20px 20px;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    text-align: left;
+    line-height: 1.4;
+}
+
+.alert-actions {
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px 15px;
+    background: #f8fafc;
+}
+
+.alert-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: 0.2s;
+}
+
+.alert-btn:hover { background: rgba(16, 57, 147, 0.1); }
+
+@keyframes alertPop {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+}
 
 
       .action-btns { display: flex; gap: 12px; }
@@ -235,7 +303,7 @@
 
 <div class="form-group" style="margin-top: 15px;">
     <label><i class="fa-solid fa-paperclip"></i> Send Attachment ( PREMIUM )</label>
-    <input type="file" id="attachment-input" class="highlight-input custom-file-input" accept="image/*,.pdf,.doc,.docx,.video/*" />
+    <input type="file" id="attachment-input" class="highlight-input custom-file-input" accept="image/*,.pdf,.doc,.docx,.video/*" onchange="triggerFileNotice(this)"/>
 </div>
         <div class="card">
           <h3><i class="fa-solid fa-list-check"></i> 2. MANUAL ENTRY</h3>
@@ -307,6 +375,21 @@
       </div>
     </div>
 
+<div id="notice-overlay" class="alert-overlay">
+    <div class="alert-box">
+        <div class="alert-title">
+            <i class="fa-solid fa-triangle-exclamation"></i> Attachment Found
+        </div>
+        <div class="alert-content">
+            <p id="notice-text">Do not minimize the WhatsApp Window, Keep it Front Open until the file is sent.
+              Otherwise, Program may terminate.</p>
+        </div>
+        <div class="alert-actions">
+            <button class="alert-btn" onclick="closeNotice()">OK</button>
+        </div>
+    </div>
+</div>
+
      <script>
         // --- BACKEND LOGIC (PRESERVED) ---
 
@@ -319,6 +402,21 @@
             container.appendChild(toast);
             setTimeout(() => toast.remove(), 4000);
         }
+
+        function triggerFileNotice(input) {
+            if (input.files && input.files[0]) {
+                const fileName = input.files[0].name;
+
+                // 1. Update the text in your existing Alert Box
+                const noticeText = document.getElementById("notice-text");
+                noticeText.innerHTML = `${fileName}<br><strong><br>Do not minimize the WhatsApp Window,<br>Keep it open in the front until the file is sent.<br>
+                  Otherwise, File may not be sent.</strong>`;
+
+                // 2. Show the overlay
+                document.getElementById("notice-overlay").style.display = "flex";
+
+            }
+        }
   
         async function upload(type) {
             const file = document.getElementById("file-input").files[0];
@@ -329,7 +427,7 @@
             const data = await res.json();
             notify(`Imported ${data.count} contacts successfully.`);
         }
-  
+
         async function loadSheet() {
             const url = document.getElementById("gsheet").value;
             if (!url) return notify("Please enter a Google Sheet URL", "error");
@@ -343,6 +441,27 @@
         }
   
         async function startCampaign() {
+
+            const fileInput = document.getElementById("attachment-input");
+            let file = fileInput.files[0];
+          //  Upload attachment FIRST
+          if (file) {
+              let formData = new FormData();
+              formData.append("file", file);
+          
+              let uploadRes = await fetch("/upload_attachment", {
+                  method: "POST",
+                  body: formData
+              });
+            
+              if (!uploadRes.ok) {
+                  notify("Attachment upload failed", "error");
+                  return;
+              }
+            
+              notify("Attachment uploaded successfully");
+          }
+
             const payload = {
                 numbers: document.getElementById("numbers").value.trim(),
                 message: document.getElementById("msg").value,
@@ -361,7 +480,7 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
             });
-  
+
             const data = await res.json();
             if (data.error) notify(data.error, "error");
             else notify(data.scheduled ? "Campaign Scheduled!" : "Campaign Started!");
@@ -381,7 +500,12 @@
             await fetch("/resume", { method: "POST" });
             notify("Dispatch Resumed", "success");
         }
-  
+
+                async function closeNotice() {
+                    document.getElementById("notice-overlay").style.display = "none";
+                    await fetch("/clear_notice", { method: "POST" });
+                }
+
         setInterval(async () => {
             try {
                 const res = await fetch("/status");
@@ -394,13 +518,14 @@
                 document.getElementById("stat-speed").innerText = data.typing_speed;
                 document.getElementById("stat-timer").innerText = data.countdown + "s";
                 document.getElementById("current-action-display").innerText = data.current_action;
-  
+
+
                 if (data.total > 0) {
                     const perc = Math.round(((data.sent + data.failed) / data.total) * 100);
                     document.getElementById("prog-bar").style.width = perc + "%";
                     document.getElementById("prog-perc").innerText = perc + "%";
                 }
-  
+
                 const dot = document.getElementById("dot");
                 const statusText = document.getElementById("status-text");
                 const startBtn = document.getElementById("start-btn");

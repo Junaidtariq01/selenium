@@ -4,6 +4,7 @@ import time
 import random
 import re
 import csv
+import pyautogui
 from datetime import datetime
 from flask import request, jsonify
 from flask_login import login_required
@@ -20,12 +21,14 @@ from openpyxl import load_workbook
 PROFILE_PATH = r"C:\selenium-profile"
 DEFAULT_COUNTRY_CODE = "91"
 TEMP_FILE = "data.xlsx"
+ATTACHMENT_FILE = "None"
+sendTimeFlag = False
 
 status_data = {
     "sent": 0, "failed": 0, "skipped": 0, "total": 0,
     "aborted": False, "running": False, "paused": False,
     "scheduled_for": None, "countdown": 0, "current_action": "Idle",
-    "typing_speed": 0
+    "typing_speed": 0,"show_notice": False
 }
 
 # ---------------- HELPERS ---------------- #
@@ -86,102 +89,298 @@ def spin_message(text):
         text = text.replace(match.group(0), random.choice(options), 1)
     return text
 
+
+
+def upload_attachment():
+    global ATTACHMENT_FILE
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    f = request.files['file']
+
+    if f.filename == '':
+        return jsonify({"error": "Empty file"}), 400
+
+    path = os.path.join(os.getcwd(), f.filename)
+    f.save(path)
+    print("📥 Saved attachment at:", path)
+    ATTACHMENT_FILE = path
+
+    return jsonify({"status": "uploaded"})
+
+
+
 # ---------------- SENDER ENGINE ---------------- #
 
+
 def send_bulk(data, message, config, schedule_delay=0):
-    global status_data
-    status_data.update({"aborted": False, "paused": False, "sent": 0, "failed": 0, "total": len(data), "running": True})
+    global status_data, ATTACHMENT_FILE, sendTimeFlag
+
+    status_data.update({
+        "aborted": False,
+        "paused": False,
+        "sent": 0,
+        "failed": 0,
+        "total": len(data),
+        "running": True
+    })
 
     if schedule_delay > 0:
         smart_sleep(schedule_delay, "Scheduling")
 
     driver = None
+
     try:
+
         options = webdriver.ChromeOptions()
         options.add_argument(f"user-data-dir={PROFILE_PATH}")
         options.add_argument("--remote-debugging-port=9222")
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
+        driver = webdriver.Chrome(
+            service=Service(ChromeDriverManager().install()),
+            options=options
+        )
+
         driver.get("https://web.whatsapp.com")
         wait = WebDriverWait(driver, 60)
+
         status_data["current_action"] = "Waiting for WhatsApp Login..."
         wait.until(EC.presence_of_element_located((By.ID, "pane-side")))
 
         for i, user in enumerate(data):
-            if status_data["aborted"]: break
+
+            if status_data["aborted"]:
+                break
+
             while status_data["paused"]:
-                if status_data["aborted"]: break
+                if status_data["aborted"]:
+                    break
                 time.sleep(1)
 
             if config.get("SAFE_HOURS") and not is_safe_hour():
                 smart_sleep(900, "Outside Safe Hours")
                 continue
 
-            phone, msg = user['number'], message.replace("{name}", user['name'])
-            if config.get("SPINTAX"): msg = spin_message(msg)
-            
+            phone = user['number']
+            msg = message.replace("{name}", user['name'])
+
+            if config.get("SPINTAX"):
+                msg = spin_message(msg)
+
             try:
-                status_data["current_action"] = f"Sending to {phone}"
+                status_data["current_action"] = f"Opening chat of {phone}"
                 driver.get(f"https://web.whatsapp.com/send?phone={phone}")
-                # msg_box = wait.until(EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]')))                
-              
-                # We wait for either the typing box (Success) OR the "Invalid number" pop-up (Skip)
+
+                # Wait for chat OR invalid popup
                 try:
-                    # Combined XPATH: Look for the chat box OR the 'invalid' error text
                     element = WebDriverWait(driver, 15).until(
-                        EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="10"] | //div[contains(text(), "invalid")] | //div[contains(text(), "not on WhatsApp")]'))
+                        EC.presence_of_element_located((
+                            By.XPATH,
+                            '//div[@contenteditable="true"][@data-tab="10"] | //div[contains(text(),"invalid")] | //div[contains(text(),"not on WhatsApp")]'
+                        ))
                     )
-                    
-                    # Check if the found element is the error pop-up
+
                     if "invalid" in element.text.lower() or "not on whatsapp" in element.text.lower():
                         status_data["skipped"] += 1
-                        status_data["current_action"] = f"Skipped: {phone} (Not on WhatsApp)"
-                        # Click the "OK" button to clear the overlay
-                        try:
-                            ok_btn = driver.find_element(By.XPATH, '//div[@role="button"][contains(., "OK")]')
-                            ok_btn.click()
-                        except: pass
-                        continue # Skip to next number
-                    
-                    # If it's the message box, proceed
+                        status_data["current_action"] = f"Skipped: {phone}"
+                        continue
+
                     msg_box = element
+
                 except:
-                    # If it times out, the number likely doesn't exist or loading failed
                     status_data["failed"] += 1
                     continue
-                # --- TYPING & SENDING ---
-                if config.get("TYPING"):
-                    for char in msg:
-                        if status_data["aborted"]: break
-                        # Select the random speed and save it to status_data
-                        speed = random.uniform(0.03, 0.14)
-                        status_data["typing_speed"] = round(speed * 1000, 0) # Convert to milliseconds
-                        msg_box.send_keys(char)
-                        time.sleep(speed)
-                    status_data["typing_speed"] = 0
-                else:
-                    msg_box.send_keys(msg)
+
+                # =========================
+                # 📎 ATTACHMENT SECTION
+                # =========================
+
+                # if ATTACHMENT_FILE and os.path.exists(ATTACHMENT_FILE):
+                #     YOUR_CLIP_X = 669  # 🔥 X coordinate of attach button
+                #     YOUR_CLIP_Y = 994  # 🔥 Y coordinate of attach button
+                #     YOUR_PHOTO_X = 663  # 🔥 X coordinate of "Photos & Videos" button
+                #     YOUR_PHOTO_Y = 727  # 🔥  Y coordinate of "Photos & Videos" button
+
+
+                #     try:
+                #         abs_path = os.path.abspath(ATTACHMENT_FILE)
+                #         status_data["current_action"] = "Sending Attachment..."
+                #         print("📎 Sending file:", abs_path)
+
+                #         driver.maximize_window()
+                #         time.sleep(5)
+
+                #         # STEP 1: Click attach button
+                #         pyautogui.moveTo(YOUR_CLIP_X, YOUR_CLIP_Y, duration=2.5)
+                #         pyautogui.click()
+                #         time.sleep(5)
+
+                #         # STEP 2: Click "Photos & Videos"
+                #         pyautogui.moveTo(YOUR_PHOTO_X, YOUR_PHOTO_Y, duration=1)
+                #         pyautogui.click()
+
+                #         # 🔥 IMPORTANT WAIT (dialog must open)
+                #         time.sleep(5)
+
+                #         # STEP 3: Now type path (dialog is active)
+                #         interval = random.uniform(0.05, 0.45)
+                #         pyautogui.write(abs_path, interval=interval)
+                #         time.sleep(3)
+
+                #         pyautogui.press("enter")  # select file
+
+                #         # STEP 4: wait preview
+                #         time.sleep(3)
+
+                #         # STEP 5: send
+                #         pyautogui.press("enter")
+                #         time.sleep(5)
+
+                #         print("✅ Attachment sent successfully")
+
+                #         sendTimeFlag = True
+                #     except Exception as e:
+                #         print("❌ PyAutoGUI error:", e)
+                #         status_data["failed"] += 1
+                #         continue
                 
-                time.sleep(1.5) # Buffer before enter
-                msg_box.send_keys(Keys.ENTER)
-                time.sleep(3) # Wait for send tick
+
+                if ATTACHMENT_FILE and os.path.exists(ATTACHMENT_FILE):
+                    try:
+                        abs_path = os.path.abspath(ATTACHMENT_FILE).replace("\\", "/")
+
+                        print("📎 Sending file:", abs_path)
+                        print("📁 EXISTS:", os.path.exists(abs_path))
+
+                        wait.until(EC.presence_of_element_located((By.XPATH, '//footer')))
+                        time.sleep(2)
+
+                        file_inputs = driver.find_elements(By.XPATH, '//input[@type="file"]')
+
+                        if not file_inputs:
+                            raise Exception("❌ No file input found")
+
+                        uploaded = False
+
+                        for inp in file_inputs:
+                            try:
+                                accept = inp.get_attribute("accept")
+                                print("🔎 Input accept:", accept)
+
+                                if accept and ("image" in accept or "video" in accept):
+
+                                    driver.execute_script("""
+                                        arguments[0].style.display = 'block';
+                                        arguments[0].style.visibility = 'visible';
+                                        arguments[0].style.opacity = 1;
+                                    """, inp)
+
+                                    inp.send_keys(abs_path)
+                                    uploaded = True
+                                    print("✅ Correct input used")
+                                    break
+
+                            except:
+                                continue
+
+                        if not uploaded:
+                            raise Exception("❌ No valid file input matched")
+
+                        # wait for preview
+                        time.sleep(5)
+
+                        # find send button
+                        # send_buttons = driver.find_elements(By.XPATH, '//span[@data-icon="send"]')
+
+                        # print("📤 Found send buttons:", len(send_buttons))
+
+                        # if not send_buttons:
+                        #     raise Exception("❌ Send button not found (preview failed)")
+
+                        # driver.execute_script("arguments[0].click();", send_buttons[-1])
+
+                         # STEP 5: send
+                        pyautogui.press("enter")
+                        time.sleep(5)
+
+                        print("✅ Attachment sent successfully")
+
+                        sendTimeFlag = True
+
+                    except Exception as e:
+                        print("❌ Attachment error:", e)
+                        status_data["failed"] += 1
+                        continue
+
+                # =========================
+                # ✉️ TEXT MESSAGE SECTION
+                # =========================
+                if msg.strip():
+
+                    if sendTimeFlag == True:
+                        time.sleep(15)
+                  
+
+                    status_data["current_action"] = f"Typing to {phone}"
+
+                    if config.get("TYPING"):
+                        for char in msg:
+                            if status_data["aborted"]:
+                                break
+
+                            speed = random.uniform(0.03, 0.14)
+                            status_data["typing_speed"] = round(speed * 1000, 0)
+
+                            msg_box.send_keys(char)
+                            time.sleep(speed)
+
+                        status_data["typing_speed"] = 0
+                    else:
+                        msg_box.send_keys(msg)
+
+                    time.sleep(1.5)
+                    msg_box.send_keys(Keys.ENTER)
+                    time.sleep(10)
+
                 status_data["sent"] += 1
+
             except Exception as e:
                 print(f"Error sending to {phone}: {e}")
                 status_data["failed"] += 1
-            # Delays and Cooldowns
+
+            # =========================
+            # ⏱ DELAYS & BATCH
+            # =========================
             if i < len(data) - 1:
                 delay = random.randint(config["DELAY_MIN"], config["DELAY_MAX"])
+
                 if (i + 1) % config["BATCH"] == 0:
                     delay = random.randint(config["COOL_MIN"], config["COOL_MAX"])
                     smart_sleep(delay, "Batch Cooldown")
                 else:
                     smart_sleep(delay, "Next Delay")
+
     finally:
-        if driver: driver.quit()
-        status_data.update({"running": False, "current_action": "Completed", "countdown": 0})
+        if driver:
+            driver.quit()
+
+        status_data.update({
+            "running": False,
+            "current_action": "Completed",
+            "countdown": 0
+        })
+
         if status_data["sent"] > 0 and os.path.exists(TEMP_FILE):
-            try: os.remove(TEMP_FILE)
-            except: pass
+            try:
+                os.remove(TEMP_FILE)
+            except:
+                pass
+
+        if ATTACHMENT_FILE and os.path.exists(ATTACHMENT_FILE):
+            try:
+                os.remove(ATTACHMENT_FILE)
+            except:
+                pass
 
 # ---------------- API ENDPOINTS ---------------- #
 
