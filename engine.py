@@ -4,6 +4,7 @@ import time
 import random
 import re
 import csv
+from wsgiref import headers
 import pyautogui
 from datetime import datetime
 from flask import request, jsonify
@@ -72,7 +73,11 @@ def process_numbers(raw):
             skipped_count += 1
             continue
         seen.add(num)
-        clean.append({"name": r.get("name", "User"), "number": num})
+        clean.append({
+            "name": r.get("name", "User"), 
+            "number": num,
+            "custom_msg": r.get("custom_msg")
+            })
     status_data["skipped"] = skipped_count
     return clean
 
@@ -162,10 +167,29 @@ def send_bulk(data, message, config, schedule_delay=0):
                 continue
 
             phone = user['number']
-            msg = message.replace("{name}", user['name'])
+            # msg = message.replace("{name}", user['name'])
 
-            if config.get("SPINTAX"):
+            # Priority Logic: Use Excel message if present, else UI template
+            custom = user.get("custom_msg")
+            if custom and custom.strip().lower() != "none": # Check for "None" string from Excel[cite: 7]
+                msg = custom
+            else:
+                msg = message.replace("{name}", user['name'])
+
+            # SAFEGUARD: Ensure msg is a string to prevent NoneType error[cite: 7]
+            msg = str(msg) if msg is not None else ""
+
+            if config.get("SPINTAX") and msg:
                 msg = spin_message(msg)
+
+
+            # if user.get("custom_msg"):
+            #     msg = user["custom_msg"]
+            # else:
+            #     msg = message.replace("{name}", user['name'])
+
+            # if config.get("SPINTAX"):
+            #     msg = spin_message(msg)
 
             try:
                 status_data["current_action"] = f"Opening chat of {phone}"
@@ -394,8 +418,24 @@ def upload_excel():
     f.save(TEMP_FILE)
     wb = load_workbook(TEMP_FILE)
     sheet = wb.active
-    raw = [{"name": str(r[0] or "User"), "number": str(r[1])} for r in sheet.iter_rows(min_row=2, values_only=True) if r[1]]
+
+    # Dynamically find the index of the "Messages" column
+    headers = [str(cell.value).strip().lower() if cell.value else "" for cell in sheet[1]]
+    msg_idx = headers.index("messages") if "messages" in headers else -1
+    
+
+    raw = []
+    for r in sheet.iter_rows(min_row=2, values_only=True):
+        if r[1]: # If number exists
+            raw.append({
+                "name": str(r[0] or "User"), 
+                "number": str(r[1]),
+                "custom_msg": str(r[msg_idx]) if msg_idx != -1 and r[msg_idx] else None
+            })
     data = process_numbers(raw)
+
+    # raw = [{"name": str(r[0] or "User"), "number": str(r[1])} for r in sheet.iter_rows(min_row=2, values_only=True) if r[1]]
+    # data = process_numbers(raw)
     return jsonify({"count": len(data)})
 
 @login_required
@@ -403,10 +443,25 @@ def upload_csv():
     f = request.files['file']
     f.save("data.csv")
     raw = []
+
+    # with open("data.csv", mode='r', encoding='utf-8') as infile:
+        # reader = csv.DictReader(infile)
+        # for row in reader:
+            # raw.append({"name": row.get("name", "User"), "number": row.get("number")})
+    
+    
+    # ... previous code ...
     with open("data.csv", mode='r', encoding='utf-8') as infile:
         reader = csv.DictReader(infile)
         for row in reader:
-            raw.append({"name": row.get("name", "User"), "number": row.get("number")})
+            # Capture "Messages" or "messages" column if present
+            raw.append({
+                "name": row.get("name", "User"), 
+                "number": row.get("number"),
+                "custom_msg": row.get("Messages") or row.get("messages")
+            })   
+    
+    
     data = process_numbers(raw)
     return jsonify({"count": len(data)})
 
@@ -425,8 +480,22 @@ def start_campaign():
     elif os.path.exists(TEMP_FILE):
         wb = load_workbook(TEMP_FILE)
         sheet = wb.active
-        raw = [{"name": str(r[0] or "User"), "number": str(r[1])} for r in sheet.iter_rows(min_row=2, values_only=True) if r[1]]
+
+        # ADD THIS: Look for the Messages column here too
+        headers = [str(cell.value).strip().lower() if cell.value else "" for cell in sheet[1]]
+        msg_idx = headers.index("messages") if "messages" in headers else -1
+
+        raw = []
+        for r in sheet.iter_rows(min_row=2, values_only=True):
+            if r[1]: 
+                raw.append({
+                    "name": str(r[0] or "User"), 
+                    "number": str(r[1]),
+                    "custom_msg": str(r[msg_idx]) if msg_idx != -1 and r[msg_idx] else None
+                })
         data = process_numbers(raw)
+        # raw = [{"name": str(r[0] or "User"), "number": str(r[1])} for r in sheet.iter_rows(min_row=2, values_only=True) if r[1]]
+        # data = process_numbers(raw)
     else:
         return jsonify({"error": "No contacts found. Please upload file or enter numbers."}), 400
 
